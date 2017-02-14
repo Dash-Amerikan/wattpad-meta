@@ -6,25 +6,14 @@ Download metadata about Wattpad stories that match a set of searches.
 
 
 from flask import Flask, redirect, request, url_for
-from flask_oauth import OAuth
 import json
 import os
+import requests
 import urllib
 import urlparse
 
 
 app = Flask(__name__)
-
-oauth = OAuth()
-wattpad = oauth.remote_app(
-    'wattpad',
-    base_url='https://www.wattpad.com/',
-    request_token_url='https://api.wattpad.com/v4/auth/token?grantType=authorizationCode',
-    access_token_url='https://api.wattpad.com/v4/auth/token?grantType=authorizationCode',
-    authorize_url='https://www.wattpad.com/oauth/code',
-    consumer_key=os.getenv('WATTPAD_API_KEY'),
-    consumer_secret=os.getenv('WATTPAD_SECRET'),
-    )
 
 
 LOGIN_INFO_FILE = 'login.json'
@@ -58,9 +47,31 @@ def login():
 
 @app.route('/login/done')
 def login_done():
-    print('code', request.args.get('code'))
-    print('error', request.args.get('error'))
-    return 'code: {}\nerror: {}\n'.format(request.args.get('code'), request.args.get('error'))
+    code = request.args.get('code')
+    error = request.args.get('error')
+    print('code', code)
+    print('error', error)
+
+    if code:
+        resp = requests.post(
+            'https://api.wattpad.com/v4/auth/token?grantType=authorizationCode',
+            data={
+                'apiKey': os.getenv('WATTPAD_API_KEY'),
+                'secret': os.getenv('WATTPAD_SECRET'),
+                'authCode': code,
+                'redirectUri': 'http://localhost:5000/login/done',
+            })
+        login_info = resp.json()
+        print(login_info)
+        with open(LOGIN_INFO_FILE, 'w') as file_out:
+            json.dump(login_info, file_out)
+        return redirect(url_for('search'))
+
+    elif error:
+        return '<strong><font color=red>ERROR: {}</font></strong>'.format(error)
+
+    else:
+        return 'thank you'
 
 
 @app.route('/search/')
