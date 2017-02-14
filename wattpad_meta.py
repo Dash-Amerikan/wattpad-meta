@@ -81,6 +81,13 @@ def search():
 
 @app.route('/output/')
 def output():
+    # TODO: read in the login information
+    # TODO: get list of tags to look for from request.args['tags']
+    # TODO: for each tag (in parallel, maybe),
+    # TODO: send a request to wattpad looking for stories with that tag
+    # TODO: index them by ID
+    # TODO: output as a CSV file
+    # TODO: it would be really nice to show some progress as we're querying wattpad
     pass
 
 
