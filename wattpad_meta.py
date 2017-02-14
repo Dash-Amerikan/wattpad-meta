@@ -5,7 +5,7 @@ Download metadata about Wattpad stories that match a set of searches.
 """
 
 
-from flask import Flask, redirect, request, url_for
+from flask import Flask, redirect, render_template, request, url_for
 import json
 import os
 import requests
@@ -76,7 +76,7 @@ def login_done():
 
 @app.route('/search/')
 def search():
-    pass
+    return render_template('search.html')
 
 
 @app.route('/output/')
