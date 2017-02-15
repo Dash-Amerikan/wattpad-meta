@@ -5,6 +5,8 @@ Download metadata about Wattpad stories that match a set of searches.
 """
 
 
+import csv
+import cStringIO as StringIO
 from flask import Flask, redirect, render_template, request, url_for
 import json
 import os
@@ -17,18 +19,25 @@ app = Flask(__name__)
 
 
 LOGIN_INFO_FILE = 'login.json'
-LOGIN_INFO = {}
+LOGIN_INFO = None
+
+
+def read_login_info():
+    """Read the login information and set the global LOGIN_INFO."""
+    global LOGIN_INFO
+
+    if LOGIN_INFO is None and os.path.exists(LOGIN_INFO_FILE):
+        with open(LOGIN_INFO_FILE) as file_in:
+            LOGIN_INFO = json.load(file_in)
+
+    return LOGIN_INFO
 
 
 @app.route('/')
 def root():
-    global LOGIN_INFO
-
-    if os.path.exists(LOGIN_INFO_FILE):
-        with open(LOGIN_INFO_FILE) as file_in:
-            LOGIN_INFO = json.load(file_in)
+    login_info = read_login_info()
+    if login_info is not None:
         return redirect(url_for('search'))
-
     else:
         return redirect(url_for('login'))
 
@@ -81,14 +90,45 @@ def search():
 
 @app.route('/output/')
 def output():
-    # TODO: read in the login information
-    # TODO: get list of tags to look for from request.args['tags']
-    # TODO: for each tag (in parallel, maybe),
-    # TODO: send a request to wattpad looking for stories with that tag
-    # TODO: index them by ID
-    # TODO: output as a CSV file
+    login_info = read_login_info()
+    tags = request.args.get('tags', '').splitlines()
+
+    index = {}
+    for tag in tags:
+        params = {
+            'query': tag,
+            'limit': 1000,
+            }
+        headers = {
+            'Authorization': os.getenv('WATTPAD_API_KEY'),
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/58.0.3004.3 Safari/537.36',
+            }
+        r = requests.get('https://api.wattpad.com:443/v4/stories', params=params, headers=headers)
+        for story in r.json()['stories']:
+            index[story['id']] = story
+
+    io = StringIO.StringIO()
+    writer = csv.writer(io)
+    writer.writerow(['title', 'url', 'description', 'tags', 'user', 'readCount', 'voteCount',
+                     'createDate', 'categories'])
+    for story in index.values():
+        writer.writerow([
+            story['title'].encode('utf8'),
+            story['url'].encode('utf8'),
+            story['description'].encode('utf8'),
+            story['tags'].encode('utf8'),
+            story['user'].encode('utf8'),
+            story['readCount'],
+            story['voteCount'],
+            story['createDate'].encode('utf8'),
+            ' '.join(str(cat) for cat in story['categories']),
+            ])
+
     # TODO: it would be really nice to show some progress as we're querying wattpad
-    pass
+    return (io.getvalue(), {'Content-Type': 'text/csv'})
 
 
 if __name__ == '__main__':
