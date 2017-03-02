@@ -98,6 +98,7 @@ def output():
         params = {
             'query': tag,
             'limit': 1000,
+            'mature': 0,
             }
         headers = {
             'Authorization': os.getenv('WATTPAD_API_KEY'),
